@@ -1,5 +1,7 @@
 Names: Ndacyayisenga Shema Arsene
+
 Student ID: 25195
+
 Group: F
 
 ## Project Statement
@@ -91,6 +93,8 @@ Columns: **payment_id**, **booking_id**, **amount**, **payment_method**, **statu
 
 ## Function Price Estimation
 
+
+
 ```sql
 CREATE OR REPLACE FUNCTION estimate_fare (
     p_origin      IN VARCHAR2,
@@ -120,6 +124,9 @@ This function estimates the total fare for a ride. It retrieves the distance bet
 
 ## Procedure For Booking rides
 
+![Bookride_Procedure](https://github.com/user-attachments/assets/d4827513-8184-4948-a5e8-73a1ed13507c)
+
+
 ```sql
 CREATE OR REPLACE PROCEDURE book_ride (
     p_ride_id      IN NUMBER,
@@ -144,6 +151,7 @@ END;
 This procedure inserts a new row into the booking table to represent a seat reservation by a passenger for a given ride. It records the current timestamp automatically and commits the change. If an error occurs (e.g. invalid ride or user ID), it rolls back the transaction to maintain data integrity.
 
 ## Trigger For restrictions
+
 
 ```sql
 CREATE OR REPLACE TRIGGER trg_restrict_dml
@@ -187,7 +195,10 @@ END;
 
 This trigger activates whenever someone tries to insert, update, or delete data in the booking table. It checks the current day of the week and the holiday_dates table. If today is a weekend (Saturday or Sunday) or a public holiday, the action is blocked and logged in audit_log. Otherwise, it allows the action and logs it as "ALLOWED".
 
-## Trigger For Displaying Scheduled rides
+## Cursor For Displaying Scheduled rides
+![Cursor_rides](https://github.com/user-attachments/assets/c232f0a9-e1c9-4683-a49b-dcfa6c60d85b)
+
+
 ```sql
 SET SERVEROUTPUT ON;
 
