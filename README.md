@@ -9,8 +9,8 @@ spilt cost among the passengers
 ## Project Overview
 
 -This ride-sharing system is designed to provide an affordable and efficient transportation solution for people in Rwanda. Similar to Uber Pool, the platform enables multiple passengers to share a single ride if they are traveling in the same direction.
--The system includes functionalities for user registration (passengers and drivers), vehicle management, ride creation, seat booking, payment processing, and ride fare estimation. It ensures data integrity and operational control through PL/SQL procedures, functions, and triggers. The system also includes auditing features to monitor restricted data changes on weekdays and public holidays.
--All database logic and operations are implemented using Oracle Database with PL/SQL, simulating a real-world backend for a ride-sharing application tailored to local needs.
+ The system includes functionalities for user registration (passengers and drivers), vehicle management, ride creation, seat booking, payment processing, and ride fare estimation. It ensures data integrity and operational control through PL/SQL procedures, functions, and triggers. The system also includes auditing features to monitor restricted data changes on weekdays and public holidays.
+ All database logic and operations are implemented using Oracle Database with PL/SQL, simulating a real-world backend for a ride-sharing application tailored to local needs.
 
 ## Project Objectives
 
