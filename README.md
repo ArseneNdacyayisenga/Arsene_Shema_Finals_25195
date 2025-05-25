@@ -90,6 +90,27 @@ Columns: **payment_id**, **booking_id**, **amount**, **payment_method**, **statu
 
 -Each **booking** results in a **single payment** (1:1 relationship).
 
+![Business Process](./BPMN.svg)
+
+
+
+## BPMN Process Overview
+The BPMN diagram models the process of booking a shared ride in the ride-sharing system. It involves three main participants:
+
+## Lanes:
+**Passenger**: Initiates the ride search and booking
+**Driver**: Creates and manages available rides
+**System**: Executes logic such as fare estimation, booking validation, and auditing
+
+## Key Process Flow:
+-**Passenger** searches for available rides
+-**System** fetches all scheduled rides using a **cursor**
+-**Passenger** selects a ride and books it via the **book_ride** procedure
+-**System** calculates **fare** using the **estimate_fare** function
+-**System** validates the **booking** with a trigger that blocks DML on weekends and holidays
+-If allowed, **booking** is confirmed and payment is processed
+-**Audit log** is updated with the result (allowed or denied)
+-**Driver** receives **ride assignments** from the system
 
 ## Function Price Estimation
 
