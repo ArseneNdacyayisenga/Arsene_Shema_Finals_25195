@@ -39,5 +39,182 @@ spilt cost among the passengers
 - **Draw.io** and **BPMN.io** – for creating ER diagrams and BPMN models
 - **GitHub** – for version control and report submission
 
+## Entity Relationship Diagram (ERD)
+
+![ERD drawio](https://github.com/user-attachments/assets/eb2d3bbe-8356-4146-953f-a8bb6a57f034)
+
+
+
+ ## Core Entities in the System:
+## Users
+Stores information about all users — drivers and passengers.
+Columns: **user_id**, **name**, **email**, **phone**, **user_type**, **password_hash**
+
+## Vehicle
+Vehicles are registered and linked to drivers.
+Columns: **vehicle_id**, **driver_id**, **plate_number**, **model**, **capacity**
+
+## Ride
+Represents a scheduled ride by a driver.
+Columns: **ride_id**, **driver_id**, **origin**, **destination**, **departure_time**, **status**
+
+## Booking
+Each booking links a passenger to a specific ride.
+Columns: **booking_id**, **ride_id**, **passenger_id**, **seat_count**, **booking_time**
+
+## Payment
+Stores payment details for each booking.
+Columns: **payment_id**, **booking_id**, **amount**, **payment_method**, **status**
+
+##  Entity Relationships and Multiplicity
+
+| Relationship Description                            | From Entity | To Entity | Multiplicity     |
+|-----------------------------------------------------|-------------|-----------|------------------|
+| A driver can own multiple vehicles                 | Users       | Vehicle   | 1 to many (1:N)  |
+| Each ride is created by one driver                 | Users       | Ride      | 1 to many (1:N)  |
+| Each ride can have multiple passenger bookings     | Ride        | Booking   | 1 to many (1:N)  |
+| Each passenger can make multiple bookings          | Users       | Booking   | 1 to many (1:N)  |
+| Each booking has exactly one payment               | Booking     | Payment   | 1 to 1 (1:1)     |
+
+## Explanation
+
+-One **user** can be either a **driver** or a **passenger**, distinguished by the user_type column.
+
+-A **driver** can register many vehicles, but each vehicle belongs to one driver.
+
+-A **ride** is always offered by one driver, but can be booked by many passengers.
+
+-A **passenger** can make **multiple bookings** over time.
+
+-Each **booking** results in a **single payment** (1:1 relationship).
+
+
+## Function Price Estimation
+
+```sql
+CREATE OR REPLACE FUNCTION estimate_fare (
+    p_origin      IN VARCHAR2,
+    p_destination IN VARCHAR2,
+    p_seat_count  IN NUMBER
+) RETURN NUMBER
+IS
+    v_distance NUMBER;
+    v_fare_per_km CONSTANT NUMBER := 1500;
+    v_total_fare NUMBER;
+BEGIN
+    SELECT distance_km INTO v_distance
+    FROM city_distance
+    WHERE origin = p_origin AND destination = p_destination;
+
+    v_total_fare := v_distance * v_fare_per_km * p_seat_count;
+    RETURN v_total_fare;
+
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        RETURN -1;
+END;
+/
+```
+## Explanation
+This function estimates the total fare for a ride. It retrieves the distance between two Kigali locations from the city_distance table, multiplies it by the number of seats and a fixed base fare of 1,500 RWF/km, and returns the total amount. If the origin/destination pair isn’t found, it returns -1.
+
+## Procedure For Booking rides
+
+```sql
+CREATE OR REPLACE PROCEDURE book_ride (
+    p_ride_id      IN NUMBER,
+    p_passenger_id IN NUMBER,
+    p_seat_count   IN NUMBER
+)
+IS
+BEGIN
+    INSERT INTO booking (ride_id, passenger_id, seat_count, booking_time)
+    VALUES (p_ride_id, p_passenger_id, p_seat_count, SYSTIMESTAMP);
+
+    COMMIT;
+EXCEPTION
+    WHEN OTHERS THEN
+        ROLLBACK;
+END;
+/
+
+```
+## Explanation
+
+This procedure inserts a new row into the booking table to represent a seat reservation by a passenger for a given ride. It records the current timestamp automatically and commits the change. If an error occurs (e.g. invalid ride or user ID), it rolls back the transaction to maintain data integrity.
+
+## Trigger For restrictions
+
+```sql
+CREATE OR REPLACE TRIGGER trg_restrict_dml
+BEFORE INSERT OR UPDATE OR DELETE ON booking
+FOR EACH ROW
+DECLARE
+    v_day VARCHAR2(10);
+    v_today DATE := TRUNC(SYSDATE);
+    v_holiday NUMBER;
+BEGIN
+    SELECT TO_CHAR(SYSDATE, 'DY', 'NLS_DATE_LANGUAGE = ENGLISH') INTO v_day FROM dual;
+
+    SELECT COUNT(*) INTO v_holiday
+    FROM holiday_dates
+    WHERE holiday_date = v_today;
+
+    IF v_day IN ('SAT', 'SUN') OR v_holiday > 0 THEN
+        INSERT INTO audit_log (user_id, operation, object_name, action_time, status)
+        VALUES (USERENV('SESSIONID'), 'BLOCKED', 'BOOKING', SYSTIMESTAMP, 'DENIED');
+
+        RAISE_APPLICATION_ERROR(-20001, 'DML operations are blocked on weekends and public holidays.');
+    ELSE
+        INSERT INTO audit_log (user_id, operation, object_name, action_time, status)
+        VALUES (
+            USERENV('SESSIONID'),
+            CASE
+                WHEN INSERTING THEN 'INSERT'
+                WHEN UPDATING THEN 'UPDATE'
+                WHEN DELETING THEN 'DELETE'
+            END,
+            'BOOKING',
+            SYSTIMESTAMP,
+            'ALLOWED'
+        );
+    END IF;
+END;
+/
+```
+
+## Explanation
+
+This trigger activates whenever someone tries to insert, update, or delete data in the booking table. It checks the current day of the week and the holiday_dates table. If today is a weekend (Saturday or Sunday) or a public holiday, the action is blocked and logged in audit_log. Otherwise, it allows the action and logs it as "ALLOWED".
+
+## Trigger For Displaying Scheduled rides
+```sql
+SET SERVEROUTPUT ON;
+
+DECLARE
+    CURSOR c_rides IS
+        SELECT ride_id, origin, destination, departure_time
+        FROM ride
+        WHERE status = 'Scheduled';
+
+    v_ride_id      ride.ride_id%TYPE;
+    v_origin       ride.origin%TYPE;
+    v_destination  ride.destination%TYPE;
+    v_departure    ride.departure_time%TYPE;
+BEGIN
+    OPEN c_rides;
+    LOOP
+        FETCH c_rides INTO v_ride_id, v_origin, v_destination, v_departure;
+        EXIT WHEN c_rides%NOTFOUND;
+        DBMS_OUTPUT.PUT_LINE('Ride: ' || v_ride_id || ' | From ' || v_origin || ' to ' || v_destination || ' at ' || v_departure);
+    END LOOP;
+    CLOSE c_rides;
+END;
+/
+
+```
+## Explanation
+This anonymous PL/SQL block uses a cursor to loop through all active rides (those with status = 'Scheduled'). It fetches each ride and prints details such as origin, destination, and departure time using DBMS_OUTPUT.PUT_LINE. This is useful for admins to review ride availability.
+
 
 
